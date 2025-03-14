@@ -24,6 +24,7 @@ const client = new MongoClient(uri, {
 const database = client.db("express_js_DB");
 const peopleCollection = database.collection("peoples");
 const insertedPeopleCollection = database.collection("inserted_peoples");
+const userCollection = database.collection("users");
 
 async function run() {
   try {
@@ -56,6 +57,13 @@ async function run() {
 
       const result = await insertedPeopleCollection.insertOne(people);
 
+      res.send(result);
+    });
+
+    app.post("/users", async (req, res) => {
+      const user = req.body;
+      console.log("Users ------------>", user);
+      const result = await userCollection.insertOne(user);
       res.send(result);
     });
 
