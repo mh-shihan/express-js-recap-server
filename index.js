@@ -11,7 +11,7 @@ const port = process.env.PORT || 5000;
 // PARSER
 app.use(
   cors({
-    origin: ["http://localhost:5173"],
+    origin: ["http://localhost:5173", "http://localhost:5173"],
     credentials: true,
   })
 );
@@ -19,6 +19,24 @@ app.use(express.json());
 app.use(cookieParser());
 
 const access_token_secret = process.env.ACCESS_TOKEN_SECRET;
+
+// Middlewares
+const verifyToken = async (req, res, next) => {
+  const token = req.cookies?.token;
+  if (!token) return res.status(401).send({ message: "Unauthorized Access" });
+
+  jwt.verify(token, access_token_secret, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ message: "Unauthorized Access" });
+    }
+
+    req.user = decoded;
+    console.log(
+      "-------------------------User Decoded Successfully------------------------"
+    );
+    next();
+  });
+};
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.88ffpvi.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -59,10 +77,13 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/inserted-peoples", async (req, res) => {
+    app.get("/inserted-peoples", verifyToken, async (req, res) => {
       const queryEmail = req.query?.email;
+      const tokenEmail = req?.user?.email;
+      if (queryEmail !== tokenEmail) {
+        return res.status(403).send({ message: "Forbidden" });
+      }
 
-      // console.log("queryEmail", queryEmail);
       let query = {};
       if (queryEmail) {
         query = { email: queryEmail };
@@ -94,7 +115,7 @@ async function run() {
 
     app.post("/users", async (req, res) => {
       const user = req.body;
-      console.log("Users ------------>", user);
+      // console.log("Users ------------>", user);
       const result = await userCollection.insertOne(user);
       res.send(result);
     });
@@ -122,10 +143,10 @@ async function run() {
     // DELETE API
     app.delete("/inserted-peoples/:id", async (req, res) => {
       const id = req.params.id;
-      console.log("Delete API", id);
+      // console.log("Delete API", id);
       const query = { _id: new ObjectId(id) };
       const result = await insertedPeopleCollection.deleteOne(query);
-      console.log("Result", result);
+      // console.log("Result", result);
       res.send(result);
     });
 
