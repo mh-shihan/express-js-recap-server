@@ -1,15 +1,24 @@
 const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 const app = express();
 const port = process.env.PORT || 5000;
 
-// parser
-app.use(cors());
+// PARSER
+app.use(
+  cors({
+    origin: ["http://localhost:5173"],
+    credentials: true,
+  })
+);
 app.use(express.json());
+app.use(cookieParser());
+
+const access_token_secret = process.env.ACCESS_TOKEN_SECRET;
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.88ffpvi.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -35,8 +44,13 @@ async function run() {
     // JWT Related API
     app.post("/jwt", async (req, res) => {
       const user = req.body;
-      const token = jwt.sign(user, "secret", { expiresIn: "1h" });
-      res.send(token);
+      const token = jwt.sign(user, access_token_secret, { expiresIn: "1h" });
+      res
+        .cookie("token", token, {
+          httpOnly: true,
+          secure: false,
+        })
+        .send({ status: true });
     });
 
     // GET API
@@ -46,8 +60,20 @@ async function run() {
     });
 
     app.get("/inserted-peoples", async (req, res) => {
-      const result = await insertedPeopleCollection.find().toArray();
-      res.send(result);
+      const queryEmail = req.query?.email;
+
+      // console.log("queryEmail", queryEmail);
+      let query = {};
+      if (queryEmail) {
+        query = { email: queryEmail };
+      }
+
+      try {
+        const result = await insertedPeopleCollection.find(query).toArray();
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+      }
     });
 
     app.get("/inserted-peoples/:id", async (req, res) => {
